@@ -40,16 +40,16 @@ cv::Mat ColorTracker::ExtractColor()
 void ColorTracker::CalibrateColor()
 {
 	cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
-	cv::Mat imgDilate, imgClose;
+	cv::Mat imgDilate, imgClose, imgErode, imgOpen;
 	int key = -1;
 	while (key != 113) // q
 	{
 		CaptureFrame();
 		cv::Mat imgExtract = ExtractColor();
-		cv::dilate(imgExtract, imgDilate, kernel);
-		cv::erode(imgDilate, imgClose, kernel);
+		cv::erode(imgExtract, imgErode, kernel);
+		cv::dilate(imgErode, imgOpen, kernel);
 		cv::imshow("Cam", m_img);
-		cv::imshow("Color extraction", imgClose);
+		cv::imshow("Color extractiom", imgOpen);
 		key = cv::waitKey(1);
 	}
 	cv::destroyWindow("Color extraction");
@@ -82,11 +82,19 @@ cv::Point ColorTracker::GetPoint()
 	cv::findContours(m_mask, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 	std::vector<std::vector<cv::Point>> contourPolygons(contours.size());
 	std::vector<cv::Rect> boundingRectangles(contours.size());
+	double areaMax = cv::contourArea(contours[0]);
+	int iMax = 0;
 	for (int i = 0; i < contours.size(); i++)
 	{
 		double area = cv::contourArea(contours[i]);
+		if (area > areaMax)
+		{
+			areaMax = area;
+			iMax = i;
+		}
+			
 
-		if (area >= 60)
+		if (area >= 20)
 		{
 			double length = cv::arcLength(contours[i], true); // true -> closed contour
 			double accuracy = 0.05;
@@ -99,7 +107,7 @@ cv::Point ColorTracker::GetPoint()
 	}
 	cv::Point point(0, 0);
 	if (boundingRectangles.data())
-		point = 0.5 * (boundingRectangles[0].tl() + boundingRectangles[0].br());
+		point = 0.5 * (boundingRectangles[iMax].tl() + boundingRectangles[iMax].br());
 	return point;
 }
 
